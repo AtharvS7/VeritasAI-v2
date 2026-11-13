@@ -1,0 +1,159 @@
+"""
+File upload & text extraction utilities.
+Supports: PDF, DOCX, TXT, URL (v2)
+"""
+import io
+import re
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+import socket
+import ipaddress
+from urllib.parse import urlparse
+
+def is_safe_url(url: str) -> bool:
+    """Check if a URL resolves to a public, non-internal IP address to prevent SSRF."""
+    try:
+        parsed = urlparse(url)
+        hostname = parsed.hostname
+        if not hostname:
+            return False
+        
+        # Resolve hostname to IP
+        ip = socket.gethostbyname(hostname)
+        ip_obj = ipaddress.ip_address(ip)
+        
+        # Check if IP is private, loopback, or otherwise reserved for internal use
+        if ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_multicast or ip_obj.is_link_local or ip_obj.is_reserved:
+            return False
+            
+        return True
+    except Exception as e:
+        logger.warning(f"SSRF check failed for {url}: {e}")
+        return False
+
+
+def extract_text_from_url(url: str) -> str:
+    """
+    Fetch and extract main article text from a URL using trafilatura.
+    Strips navigation, ads, footers, boilerplate.
+
+    Args:
+        url: The URL to fetch article text from.
+
+    Returns:
+        Plain text content of the article, or empty string on failure.
+    """
+    if not is_safe_url(url):
+        logger.warning(f"SSRF blocked for URL: {url}")
+        return ""
+
+    try:
+        import trafilatura
+        downloaded = trafilatura.fetch_url(url)
+        if not downloaded:
+            logger.warning(f"URL fetch failed: {url}")
+            return ""
+        text = trafilatura.extract(
+            downloaded,
+            include_comments=False,
+            include_tables=True,
+            no_fallback=False,
+        )
+        return text.strip() if text else ""
+    except ImportError:
+        logger.error("trafilatura not installed — run: pip install trafilatura")
+        return ""
+    except Exception as e:
+        logger.error(f"URL extraction error for {url}: {e}")
+        return ""
+
+
+def extract_text_from_pdf(file_bytes: bytes) -> str:
+    """Extract text from PDF file bytes."""
+    try:
+        from PyPDF2 import PdfReader
+        reader = PdfReader(io.BytesIO(file_bytes))
+        text_parts = []
+        for page in reader.pages:
+            t = page.extract_text()
+            if t:
+                text_parts.append(t.strip())
+        return "\n".join(text_parts)
+    except Exception as e:
+        logger.error(f"PDF extraction error: {e}")
+        return ""
+
+
+def extract_text_from_docx(file_bytes: bytes) -> str:
+    """Extract text from DOCX file bytes."""
+    try:
+        from docx import Document
+        doc = Document(io.BytesIO(file_bytes))
+        return "\n".join(p.text.strip() for p in doc.paragraphs if p.text.strip())
+    except Exception as e:
+        logger.error(f"DOCX extraction error: {e}")
+        return ""
+
+
+def extract_text_from_txt(file_bytes: bytes) -> str:
+    """Extract text from plain text file."""
+    try:
+        for encoding in ["utf-8", "latin-1", "ascii"]:
+            try:
+                return file_bytes.decode(encoding)
+            except (UnicodeDecodeError, AttributeError):
+                continue
+        return file_bytes.decode("utf-8", errors="ignore")
+    except Exception as e:
+        logger.error(f"TXT extraction error: {e}")
+        return ""
+
+
+def extract_text(filename: str, file_bytes: bytes) -> str:
+    """Route to correct extractor based on file extension."""
+    ext = filename.lower().rsplit(".", 1)[-1] if "." in filename else ""
+
+    if ext == "pdf":
+        return extract_text_from_pdf(file_bytes)
+    elif ext in ("docx", "doc"):
+        return extract_text_from_docx(file_bytes)
+    elif ext in ("txt", "text", "md", "csv"):
+        return extract_text_from_txt(file_bytes)
+    else:
+        return ""
+
+
+def is_meaningful_content(text: str) -> tuple[bool, str]:
+    """
+    Check if extracted text contains meaningful news-like content.
+    Returns (is_valid, reason).
+    """
+    text = text.strip()
+
+    if len(text) < 20:
+        return False, "Text is too short to analyze. Please upload a file with more content."
+
+    # Check for gibberish / random characters
+    alpha_ratio = sum(1 for c in text if c.isalpha()) / max(len(text), 1)
+    if alpha_ratio < 0.4:
+        return False, "This file does not contain readable text content. Please upload a document with proper text."
+
+    # Check word count
+    words = text.split()
+    if len(words) < 5:
+        return False, "Content is too short — needs at least 5 words of readable text."
+
+    # Check average word length (gibberish tends to have very long or very short "words")
+    avg_word_len = sum(len(w) for w in words) / len(words)
+    if avg_word_len < 2 or avg_word_len > 25:
+        return False, "This does not appear to contain proper news content or readable text."
+
+    # Check for sentence-like structure
+    has_sentences = bool(re.search(r'[.!?]\s', text)) or len(words) > 10
+    if not has_sentences and len(words) < 10:
+        return False, "Content does not appear to contain proper sentences or news headlines."
+
+    return True, "Content is valid for analysis"
