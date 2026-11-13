@@ -1,67 +1,119 @@
 # 🔍 VeritasAI
-**"See Through the Noise"**
+> **"See Through the Noise"** — A full-stack AI-powered misinformation verification platform that breaks down articles into atomic, checkable claims, retrieves real-time evidence, and delivers a credibility-weighted ensemble verdict with full explainability.
 
-> A full-stack, 12-step misinformation verification platform that breaks down articles into atomic checkable claims, retrieves real-time evidence, and computes a credibility-weighted ensemble verdict.
-
-[![CI/CD Pipeline](https://github.com/ShashankKalwa/VeritasAI/actions/workflows/ci.yml/badge.svg)](https://github.com/ShashankKalwa/VeritasAI/actions/workflows/ci.yml)
+[![CI/CD Pipeline](https://github.com/AtharvS7/VeritasAI-v2/actions/workflows/ci.yml/badge.svg)](https://github.com/AtharvS7/VeritasAI-v2/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
+[![React](https://img.shields.io/badge/React-19-61DAFB)](https://react.dev/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.11x-009688)](https://fastapi.tiangolo.com/)
 
-**[🔴 Live Demo](https://veritas-ai-delta.vercel.app/)** 
+**[🔴 Live Demo](https://veritas-ai-delta.vercel.app/)**
+
+---
+
+## 📋 Table of Contents
+
+- [What is VeritasAI?](#-what-is-veritasai)
+- [Verification Pipeline](#-verification-pipeline-v3)
+- [Features](#-features)
+- [Tech Stack](#️-tech-stack)
+- [Verdict Taxonomy](#-7-level-verdict-taxonomy)
+- [Model Performance](#-model-performance--benchmarks)
+- [API Endpoints](#-api-endpoints)
+- [Quick Start](#-quick-start)
+- [Project Structure](#-project-structure)
+- [CI/CD](#-cicd-pipeline)
+- [Docker](#-run-with-docker-compose)
+
+---
+
+## 💡 What is VeritasAI?
+
+VeritasAI is a **12-step AI misinformation detection pipeline** built for the modern information landscape. Rather than classifying an entire article with a single model, it:
+
+1. **Extracts atomic claims** from any text, URL, or uploaded file using Gemini LLM
+2. **Gates each claim** through a DeBERTa-based check-worthiness classifier (ClaimBuster)
+3. **Retrieves live evidence** via Tavily Search + Google Fact Check API per claim
+4. **Scores source credibility** across a database of 50+ domains
+5. **Applies three parallel signal engines** — BERT linguistic analysis, 60+ rule heuristics, and Gemini LLM evidence reasoning
+6. **Aggregates into a 7-label verdict** using a credibility-weighted ensemble
+7. **Explains every decision** with primary signals, top supporting/contradicting sources, and confidence scores
+
+> VeritasAI is designed to be explainable, not just accurate — every verdict comes with the evidence trail behind it.
+
+---
 
 ## 🔬 Verification Pipeline (v3)
 
 ```mermaid
 graph TD
-    A[Input: URL, Text, File] --> B(Claim Extractor: Gemini 2.5 Flash)
+    A[Input: URL / Text / File] --> B(Claim Extractor: Gemini 2.5 Flash)
     B --> C{ClaimBuster Gate}
     C -->|Opinion| Z[Discard]
     C -->|Checkable Fact| D[Evidence Retrieval: Tavily & Fact Check API]
     D --> E[Source Credibility Scoring]
-    D --> F[LLM Evidence Reasoner]
+    D --> F[LLM Evidence Reasoner: Gemini]
     D --> G[NLP Signals: BERT + Heuristics]
     E --> H((Ensemble Aggregator))
     F --> H
     G --> H
-    H --> I[Final 7-Label Verdict]
+    H --> I[Final 7-Label Verdict + Explainability]
 ```
 
-### Detailed Pipeline Steps
-<details>
-<summary>Click to expand full 12-step pipeline</summary>
+### 12-Step Pipeline Detail
 
 | Step | Component | Technology | Purpose |
-|------|-----------|-----------|---------|
-| 1-2 | **Input Handler** | Trafilatura + heuristics | URL/text extraction, content type detection |
+|------|-----------|------------|---------|
+| 1–2 | **Input Handler** | Trafilatura + heuristics | URL/text extraction, content-type detection |
 | 3 | **Claim Extractor** | Gemini 2.5 Flash | Extract atomic, checkable factual claims |
 | 4 | **ClaimBuster Gate** | `whispAI/ClaimBuster-DeBERTaV2` | Filter opinions from checkable facts (0% weight) |
-| 5 | **Evidence Retrieval** | Tavily Search API | Real-time web search for each claim |
+| 5 | **Evidence Retrieval** | Tavily Search API | Real-time web search per claim |
 | 6 | **Google Fact Check** | Fact Check Tools API | Cross-reference verified fact-checks |
 | 7 | **Aggregation** | Custom | Deduplicate, merge, sort evidence |
-| 8 | **Source Credibility** | 50+ domain database | Score evidence sources (0-100) |
+| 8 | **Source Credibility** | 50+ domain database | Score evidence sources (0–100) |
 | 9a | **BERT Signal** | `jy46604790/Fake-News-Bert-Detect` | Linguistic credibility signal (10% weight) |
-| 9b | **Heuristic Signal** | 60+ regex rules | Manipulation detection (10% weight) |
-| 10 | **Evidence Reasoning** | Gemini 3.1 Pro Preview | Classify evidence as supporting/contradicting/unclear |
-| 11 | **Ensemble Verdict** | Credibility-weighted | Per-claim + article verdict (65% evidence weight) |
-| 12 | **Explainability** | Custom | Primary/secondary signals, top sources |
-
-</details>
+| 9b | **Heuristic Signal** | 60+ regex rules | Manipulation pattern detection (10% weight) |
+| 10 | **Evidence Reasoning** | Gemini 2.5 Pro | Classify evidence as supporting / contradicting / unclear |
+| 11 | **Ensemble Verdict** | Credibility-weighted | Per-claim + article-level verdict (65% evidence weight) |
+| 12 | **Explainability** | Custom formatter | Primary/secondary signals, top sources, confidence |
 
 ---
 
 ## ✨ Features
 
-- 🧠 **Claim-Level Verification** — Extract and verify individual claims, not just article-level.
-- 🌐 **Evidence Retrieval** — Real-time web search (Tavily) + Google Fact Check per claim.
-- 📊 **Source Credibility** — 50+ domains scored and credibility-weighted (not simple source count).
-- 💡 **Explainability** — Primary signal, supporting/contradicting signals, top sources.
-- 📁 **Multi-Input** — URL, article text, headline, social post, or file upload (PDF/DOCX/TXT/MD).
-- 📈 **Analytics Dashboard** — Real-time charts with 7-label verdict taxonomy.
-- 🔴 **Live Feed** — WebSocket-powered community detection feed (recently analyzed articles).
-- 🔐 **JWT Accounts & Private History** — MongoDB Atlas stores accounts and each user's completed searches; verification requires sign-in while the global live feed remains public.
-- 🔥 **Trending Claims** — Aggregated database of trending claims sorted by check counts, updated automatically by an integrated background scheduler.
-- 🛡️ **Rate Limiting & Quotas** — IP-based rate limits and daily API quotas powered by SlowAPI and Redis.
-- ⚡ **Global Caching** — Upstash Redis caching for expensive LLM extractions and web searches.
-- 🔄 **CI/CD Pipeline** — Automated testing via GitHub Actions on every push and pull request.
+### 🔎 Core Verification
+- **Claim-Level Verification** — Each claim extracted and verified independently, not just article-level.
+- **Multi-Input Support** — URL, raw article text, headline, social post, or file upload (PDF / DOCX / TXT / MD, up to 5 MB).
+- **Real-Time Evidence** — Live web search (Tavily) + Google Fact Check API cross-referencing per claim.
+- **Source Credibility Scoring** — 50+ domains rated 0–100 and credibility-weighted in the ensemble.
+- **Explainability** — Every verdict includes primary signal, top supporting/contradicting sources, and per-claim confidence.
+
+### 🔐 Authentication & Private History
+- **JWT Account System** — Sign up / sign in with email + password, powered by MongoDB Atlas.
+- **Bcrypt Password Hashing** — Passwords never stored in plain text.
+- **Private Search History** — Every signed-in analysis is saved to your account and accessible from the **History** page.
+- **Protected Routes** — Feed, Dashboard, Dataset, and History pages require authentication; unauthenticated visitors are prompted to sign in.
+- **7-Day JWT Tokens** — Persistent sessions with Bearer token authentication.
+
+### 📊 Analytics & Community
+- **Analytics Dashboard** — Real-time verdict distribution charts (Chart.js) with 7-label taxonomy.
+- **Community Live Feed** — WebSocket-powered stream of recently analyzed articles; browsable with verdict filtering.
+- **Trending Claims** — Aggregated database of trending claims sorted by check count, refreshed every 3 hours by a background scheduler.
+- **Live Feed Ticker** — Scrolling headline ticker of recent verifications on the homepage.
+
+### ⚡ Performance & Reliability
+- **Global Redis Caching** — Upstash Redis caches expensive LLM extractions (24 h), Tavily searches (6 h), and HuggingFace inferences (24 h).
+- **IP Rate Limiting** — SlowAPI + Redis-backed rate limits on all endpoints.
+- **Daily API Quotas** — Configurable global daily limit on the `/api/analyze` endpoint.
+- **Graceful Fallbacks** — Each signal engine degrades gracefully if its API is unavailable (quota exhaustion, timeouts, or missing keys).
+- **Keep-Alive Crons** — APScheduler jobs ping Render, Supabase, and Upstash Redis to prevent cold starts.
+
+### 🛠️ Developer Experience
+- **Unified Launcher** (`start.py`) — Single command creates the venv, installs dependencies, and starts both frontend and backend concurrently.
+- **Hot Reload** — Uvicorn `--reload` on backend; Vite HMR on frontend.
+- **CI/CD Pipeline** — GitHub Actions runs linting and tests on every push and pull request.
+- **Docker Support** — Full `docker-compose.yml` for containerized deployment.
+- **Swagger Docs** — Auto-generated API docs at `/docs`.
 
 ---
 
@@ -69,277 +121,262 @@ graph TD
 
 | Layer | Technology |
 |-------|-----------|
-| **Frontend** | React 19 + Vite 8 + Chart.js + React Router v7 |
-| **Backend** | FastAPI (Python) + Uvicorn + SlowAPI (Rate Limiter) + APScheduler (Cron Jobs) |
-| **AI/ML** | Gemini 2.5 Flash & 3.1 Pro Preview, HuggingFace, ClaimBuster DeBERTa |
-| **Evidence** | Tavily Search API + Google Fact Check API + NewsAPI |
-| **Database & Cache** | MongoDB Atlas (accounts and private search history) + Supabase (public feed and analytics) + Upstash Redis |
+| **Frontend** | React 19, Vite 8, React Router v7, Chart.js |
+| **Backend** | FastAPI (Python), Uvicorn, SlowAPI, APScheduler |
+| **Auth** | JWT (python-jose), bcrypt, MongoDB Atlas |
+| **AI / ML** | Gemini 2.5 Flash & Pro (Claim extraction + Reasoning), HuggingFace (BERT + ClaimBuster DeBERTa) |
+| **Evidence** | Tavily Search API, Google Fact Check Tools API |
+| **Database** | MongoDB Atlas (accounts + private history), Supabase (public feed + analytics) |
+| **Cache** | Upstash Redis |
 | **Styling** | Vanilla CSS (dark newsroom theme) |
 | **CI/CD** | GitHub Actions |
+| **Deployment** | Vercel (frontend), Render (backend) |
 
 ---
 
 ## 🏷️ 7-Level Verdict Taxonomy
 
-| Label | Color | Meaning |
-|-------|-------|---------|
-| 🟢 **Credible** | `#22c55e` | Strong evidence supporting the claims |
-| 🟢 **Likely True** | `#86efac` | Mostly supported, minor gaps |
-| 🟡 **Mixed / Misleading** | `#eab308` | Evidence is contradictory or partial |
-| 🟠 **Likely False** | `#f97316` | Significant contradicting evidence |
-| 🔴 **False** | `#ef4444` | Clearly contradicted by reliable evidence |
-| ⚪ **Insufficient Evidence** | `#94a3b8` | Not enough sources found to verify |
-| 🟣 **Opinion / Not Fact-Checkable** | `#6366f1` | Not a factual claim (opinion, prediction) |
+| Label | Meaning |
+|-------|---------|
+| 🟢 **Credible** | Strong evidence supporting the claims |
+| 🟢 **Likely True** | Mostly supported, minor gaps |
+| 🟡 **Mixed / Misleading** | Evidence is contradictory or partial |
+| 🟠 **Likely False** | Significant contradicting evidence |
+| 🔴 **False** | Clearly contradicted by reliable evidence |
+| ⚪ **Insufficient Evidence** | Not enough sources found to verify |
+| 🟣 **Opinion / Not Fact-Checkable** | Not a factual claim (opinion, prediction) |
 
 ---
 
 ## 📊 Model Performance & Benchmarks
 
-VeritasAI is evaluated against a curated dataset of fact-checkable claims (see `backend/eval/dataset.json`). The ensemble pipeline achieves strong performance on identifying clear misinformation and credible facts.
+Evaluated against a curated dataset of fact-checkable claims (`backend/eval/dataset.json`):
 
 | Metric | Score | Note |
 |--------|-------|------|
-| **Accuracy** | `90.0%` | Overall correct classifications across all labels. |
-| **Precision (Misinfo)** | `83.3%` | High confidence when flagging claims as FALSE. |
-| **Recall (Misinfo)** | `100.0%` | Successfully identified all known FALSE claims in the test set. |
-| **F1 Score** | `90.9%` | Balanced harmonic mean of precision and recall. |
+| **Accuracy** | `90.0%` | Overall correct classifications |
+| **Precision (Misinfo)** | `83.3%` | Confidence when flagging FALSE claims |
+| **Recall (Misinfo)** | `100.0%` | All known FALSE claims in test set identified |
+| **F1 Score** | `90.9%` | Balanced harmonic mean |
 
-**Failure Modes / Limitations:**
-- **Ambiguous Claims**: Claims that require deep semantic understanding or domain-specific context may be labeled as `MIXED` if the retrieval pipeline surfaces conflicting preliminary articles.
-- **Paywalled Evidence**: If crucial fact-checks are behind strict paywalls, the system may fall back to `Insufficient Evidence`.
+**Known limitations:**
+- Claims requiring deep domain expertise may be labelled `Mixed` when preliminary evidence conflicts.
+- Paywalled fact-checks fall back to `Insufficient Evidence`.
+- Gemini rate limits (15 RPM free tier) are mitigated by Redis caching.
+
+---
+
+## 📡 API Endpoints
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `POST` | `/api/analyze` | Optional | Analyze text/URL for misinformation |
+| `POST` | `/api/analyze/file` | Optional | Upload file (PDF/DOCX/TXT/MD) for analysis |
+| `GET` | `/api/feed` | None | Paginated live feed of recent analyses |
+| `GET` | `/api/trending` | None | Trending claims sorted by check count |
+| `GET` | `/api/stats` | None | Aggregated dashboard statistics |
+| `GET` | `/api/dataset` | None | Evaluation dataset endpoint |
+| `POST` | `/api/auth/signup` | None | Create a new account |
+| `POST` | `/api/auth/login` | None | Sign in and receive a JWT token |
+| `GET` | `/api/auth/me` | Bearer JWT | Get current user profile |
+| `GET` | `/api/auth/history` | Bearer JWT | Get user's private search history |
+| `POST` | `/api/trending/refresh` | Admin key | Manually trigger trending cron |
+
+> Full interactive docs available at `http://localhost:8000/docs` when running locally.
 
 ---
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js 18+
-- Python 3.12+
-- For sign-up, sign-in, and private search history: MongoDB Atlas connection settings in `backend/.env` (`MONGODB_URI`, `MONGODB_DATABASE`, and a strong `JWT_SECRET`).
 
-### Frontend
+- **Python 3.10+**
+- **Node.js 18+** and npm
+- MongoDB Atlas cluster (for accounts and search history)
+- API keys: Gemini, Tavily, HuggingFace, Supabase, Google Fact Check (optional but recommended)
+
+### ⚡ One-Command Launch (Recommended)
+
+```bash
+# Clone the repo
+git clone https://github.com/AtharvS7/VeritasAI-v2.git
+cd VeritasAI-v2
+
+# Copy and fill in environment files
+cp .env.example .env               # Add VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, VITE_API_URL
+cp backend/.env.example backend/.env  # Add all API keys and MongoDB credentials
+
+# Run the unified launcher — handles venv, pip install, npm install, and starts both servers
+python start.py
+```
+
+The launcher will:
+1. ✅ Create / verify `backend/venv` automatically
+2. ✅ Install Python packages (skips if already installed — hash-checked)
+3. ✅ Check `node_modules` (runs `npm install` if missing)
+4. ✅ Start the **FastAPI backend** at `http://localhost:8000`
+5. ✅ Start the **Vite frontend** at `http://localhost:5173`
+
+```
+Press Ctrl+C to stop both servers cleanly.
+```
+
+#### Launcher Flags
+```bash
+python start.py --backend-only      # Start only the FastAPI backend
+python start.py --frontend-only     # Start only the Vite frontend
+python start.py --force-install     # Force reinstall all Python dependencies
+```
+
+---
+
+### Manual Setup
+
+#### Frontend
 ```bash
 npm install
 npm run dev
 # → http://localhost:5173
 ```
 
-### Backend
+#### Backend
 ```bash
 cd backend
 python -m venv venv
-venv\Scripts\activate  # Windows
-# source venv/bin/activate  # macOS/Linux
+venv\Scripts\activate          # Windows
+# source venv/bin/activate     # macOS / Linux
 pip install -r requirements.txt
-# From backend/: PowerShell `Copy-Item .env.example .env`; macOS/Linux `cp .env.example .env`
-# Set MONGODB_URI, MONGODB_DATABASE, and JWT_SECRET in backend/.env
 python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-# → http://localhost:8000 (API)
-# → http://localhost:8000/docs (Swagger)
+# → http://localhost:8000
+# → http://localhost:8000/docs  (Swagger)
 ```
-
----
-
-## 🐳 Run the Full App with Docker Compose
-
-Install and start Docker Desktop first. From the repository root, create both environment files. Set the frontend's Supabase URL and anon key in `.env`; set MongoDB Atlas, JWT, and backend Supabase values in `backend/.env`. Add any AI/search API keys you use for verification engines.
-
-```powershell
-Copy-Item .env.example .env
-Copy-Item backend/.env.example backend/.env
-# Edit both files with your own service settings and credentials
-
-docker compose up --build -d
-# Frontend → http://localhost
-# Backend API → http://localhost:8000
-# Backend docs → http://localhost:8000/docs
-```
-
-On macOS/Linux, use `cp .env.example .env` and `cp backend/.env.example backend/.env` instead. MongoDB Atlas passwords with reserved URL characters must be URL-encoded in `MONGODB_URI`.
-
-The frontend container calls the backend at `http://localhost:8000` from your browser. Compose passes the frontend's public `VITE_*` settings as Docker build arguments, supplies local CORS origins, reads backend settings from `backend/.env`, and waits for the backend health check before starting the frontend. Never put MongoDB credentials, `JWT_SECRET`, or the Supabase service-role key in the root `.env` or frontend build.
-
-To see container logs or stop the app:
-
-```bash
-docker compose logs -f
-docker compose down
-```
-
----
-
-## 🔑 Environment Variables
-
-### Frontend (`.env`)
-```env
-VITE_SUPABASE_URL=your_supabase_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-VITE_API_URL=http://localhost:8000
-```
-
-### Backend (`backend/.env`)
-```env
-# JWT authentication and MongoDB Atlas (required for accounts and search history)
-MONGODB_URI=mongodb+srv://<username>:<password>@<cluster>/<database>?retryWrites=true&w=majority
-MONGODB_DATABASE=veritasai
-JWT_SECRET=replace-with-a-long-random-secret
-
-# Supabase
-SUPABASE_URL=your_supabase_url
-SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_key
-
-# ── CORS Configuration ──
-# Local: http://localhost:5173
-# Production: https://your-vercel-domain.vercel.app
-ALLOWED_ORIGINS=http://localhost:5173,https://veritasai-frontend.vercel.app
-
-# ── Signal engines ──
-HF_API_TOKEN=your_huggingface_token
-CLAIMBUSTER_HF_MODEL=whispAI/ClaimBuster-DeBERTaV2
-GOOGLE_FACTCHECK_API_KEY=your_google_factcheck_key
-
-# v3: LLM (claim extraction + reasoning)
-GOOGLE_AI_API_KEY=your_gemini_api_key
-LLM_MODEL_EXTRACT=gemini-2.5-flash
-LLM_MODEL_REASON=gemini-2.5-pro
-
-# ── v3: Evidence retrieval ──
-SEARCH_API_PROVIDER=tavily
-SEARCH_API_KEY=your_tavily_key
-
-# ── v3: Pipeline config ──
-MAX_CLAIMS=5
-MAX_EVIDENCE_PER_CLAIM=6
-CLAIMBUSTER_GATE_THRESHOLD=40
-SOURCE_CREDIBILITY_CONFIG_PATH=backend/config/source_credibility.json
-
-# ── v4: Redis Cache (Upstash) ──
-UPSTASH_REDIS_URL=your_upstash_redis_url
-UPSTASH_REDIS_TOKEN=your_upstash_redis_token
-CACHE_TAVILY_TTL=21600
-CACHE_FACTCHECK_TTL=43200
-CACHE_HF_TTL=86400
-CACHE_EXTRACTION_TTL=86400
-
-# ── v4: Rate Limiting & Admin ──
-UPSTASH_REDIS_PROTOCOL_URL=rediss://default:your_password@your_endpoint:6379
-ADMIN_API_KEY=your_admin_api_key
-DAILY_LIMIT_ANALYZE=200
-
-# ── Live Feed Cron (Trending) ──
-NEWS_API_KEY=your_newsapi_key
-NEWS_API_PROVIDER=newsapi
-NEWS_API_LANGUAGE=en
-NEWS_API_PAGE_SIZE=10
-FEED_CRON_INTERVAL_HOURS=3
-FEED_SKIP_IF_ANALYZED_WITHIN_HOURS=12
-```
-
-### 🛑 API Quota Exhaustion & Fallbacks
-VeritasAI relies on multiple free-tier APIs and gracefully handles quota exhaustion:
-- **Hugging Face (`[Errno -5]` or `429 Too Many Requests`)**: If the API times out or blocks requests, VeritasAI fast-fails after 3 seconds and bypasses the BERT/ClaimBuster signals. The ensemble relies purely on Gemini and Google Fact Check instead.
-- **Tavily Search API (Monthly limit reached)**: If Tavily returns a `429`, the system logs a warning and heavily weights Google Fact Check or falls back to "Insufficient Evidence" rather than crashing the pipeline.
-- **Gemini LLM (15 RPM / 1,500 RPD)**: If extraction or reasoning hits rate limits, the request fails gracefully and alerts the user to try again in a minute. We mitigate this using Upstash Redis to globally cache LLM extractions for 24 hours.
-- **Daily Analyze Limit (`DAILY_LIMIT_ANALYZE`)**: Global backend limiter that returns a `429 Too Many Requests` HTTP error if the public-facing endpoint is abused.
-
----
-
-## 📡 API Endpoints
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/api/analyze` | Verify text claims (v3 ensemble pipeline) |
-| `POST` | `/api/analyze/file` | Upload & analyze PDF/DOCX/TXT/MD |
-| `POST` | `/api/auth/signup` | Create an account; returns a JWT and public user profile |
-| `POST` | `/api/auth/login` | Sign in; returns a JWT and public user profile |
-| `GET` | `/api/auth/me` | Get the current authenticated user (Bearer token required) |
-| `GET` | `/api/auth/history` | Get the signed-in user's private search history (Bearer token required) |
-| `GET` | `/api/stats` | Dashboard global statistics |
-| `GET` | `/api/feed` | Recent analyses feed (from analyzed_news) |
-| `GET` | `/api/dataset` | Paginated dataset with filters |
-| `GET` | `/api/dataset/stats` | Dataset statistics |
-| `GET` | `/api/trending` | Trending claims sorted by check count |
-| `POST` | `/api/trending/refresh` | Manually trigger trending claims scheduler job |
-| `GET` | `/health` | API health check |
-| `GET` | `/docs` | Swagger API documentation |
-
-The analysis endpoints require `Authorization: Bearer <token>`. The frontend signs users in before allowing analysis and stores each completed result in MongoDB under that account. The global live feed remains public; the history endpoint returns only records belonging to the authenticated user.
-
----
-
-## 🤖 For AI Assistants & Developers
-
-If you are an AI coding assistant, an LLM, or a developer looking to understand the deepest technical details of VeritasAI (including full database schemas, JSONB structures, and the complete data flow of the 12-step pipeline), please read the **[AI_CONTEXT.md](AI_CONTEXT.md)** file in the root directory. It serves as a comprehensive system prompt and architecture guide.
 
 ---
 
 ## 📁 Project Structure
 
 ```
-VeritasAI/
-├── src/                  # React frontend
-│   ├── components/       # UI Components
-│   │   ├── ArchDiagram.jsx         # Verification pipeline architecture visualizer
-│   │   ├── ArticleInput.jsx        # File upload & text submission form
-│   │   ├── AuthModal.jsx           # User authentication dialog
-│   │   ├── CommunityFeed.jsx       # Recent verification stream
-│   │   ├── LiveFeedTicker.jsx      # Bottom ticker showing latest claims
-│   │   ├── MetricCard.jsx          # Statistics display card
-│   │   ├── Navbar.jsx              # Navigation header
-│   │   ├── ResultCard.jsx          # Verdict & evidence explainability details
-│   │   └── TrendingClaimCard.jsx   # List item card for trending claims
-│   ├── pages/            # Application Pages
-│   │   ├── AboutPage.jsx           # Details about the project methodology
-│   │   ├── DashboardPage.jsx       # Verification analytics & statistics charts
-│   │   ├── DatasetPage.jsx         # Queryable, filtered database of verified news
-│   │   ├── DetectPage.jsx          # Core analysis input and results area
-│   │   ├── FeedPage.jsx            # Trending claims page
-│   │   └── HistoryPage.jsx         # Signed-in user's private searches
-│   ├── context/          # Authentication state shared by the React app
-│   │   └── AuthContext.jsx
-│   ├── lib/              # Frontend utilities
-│   │   ├── api.js                  # Fetch helpers for FastAPI
-│   │   ├── heuristics.js           # Client-side validation
-│   │   └── supabase.js             # Supabase client instantiation
-│   ├── App.jsx           # Router configuration
-│   └── main.jsx          # SPA entry point
-├── backend/              # FastAPI backend
-│   ├── routes/           # Router modules
-│   │   ├── auth.py                 # Signup, login, profile, and private history endpoints
-│   │   ├── analyze.py              # Main verification pipeline routes
-│   │   ├── dataset.py              # Paginated database query routes
-│   │   ├── feed.py                 # Live feed retrieval routes
-│   │   ├── stats.py                # Statistics aggregation routes
-│   │   └── trending.py             # Trending claims routes
-│   ├── lib/              # Verification & ML pipeline modules
-│   │   ├── auth.py                 # MongoDB connection, JWT validation, history storage
-│   │   ├── claim_extractor.py      # LLM claim extraction engine
-│   │   ├── ensemble_verdict_v2.py  # Credibility-weighted verdict calculator
-│   │   ├── evidence_reasoner.py    # LLM evidence reasoning evaluator
-│   │   ├── evidence_retriever.py   # Tavily & Google FC evidence gatherer
-│   │   ├── explainability_formatter.py # Response packaging and aggregation
-│   │   ├── feed_manager.py         # Handles feed storage and retrieval logic
-│   │   ├── file_parser.py          # Extractor for PDF/DOCX/TXT/URL inputs
-│   │   ├── heuristics.py           # Regex-based NLP manipulation rules (60+ rules)
-│   │   ├── input_handler.py        # Normalizes URL, headlines, text inputs
-│   │   ├── ml_model.py             # HuggingFace BERT & ClaimBuster wrappers
-│   │   ├── source_credibility.py   # Domain scoring & credential ranking
-│   │   └── supabase_client.py      # Supabase wrapper
-│   ├── config/           # Database & config files
-│   │   └── source_credibility.json # 50+ pre-evaluated credibility scores
-│   ├── jobs/             # Scheduled tasks
-│   │   └── trending_cron.py        # Background scheduler for trending claims
-│   ├── migrations/       # DB migration scripts
-│   ├── main.py           # FastAPI server entry point
-│   └── requirements.txt  # Python dependencies
-├── public/               # Static assets
-└── index.html            # HTML shell
+VeritasAI-v2/
+├── start.py                        # Unified dev launcher (venv + servers)
+├── run.py                          # Convenience alias for start.py
+├── package.json                    # Frontend dependencies (React + Vite)
+├── index.html
+│
+├── src/                            # React frontend
+│   ├── pages/
+│   │   ├── DetectPage.jsx          # Main verification UI
+│   │   ├── FeedPage.jsx            # Community live feed
+│   │   ├── DashboardPage.jsx       # Analytics dashboard
+│   │   ├── HistoryPage.jsx         # Private search history (auth required)
+│   │   ├── DatasetPage.jsx         # Evaluation dataset viewer
+│   │   └── AboutPage.jsx
+│   ├── components/
+│   │   ├── AuthModal.jsx           # Sign in / Sign up modal
+│   │   ├── Navbar.jsx              # Navigation with auth state
+│   │   ├── ResultCard.jsx          # Verdict display card
+│   │   ├── CommunityFeed.jsx       # Live feed component
+│   │   ├── LiveFeedTicker.jsx      # Scrolling headline ticker
+│   │   ├── TrendingClaimCard.jsx   # Trending claim card
+│   │   └── MetricCard.jsx          # Dashboard metric card
+│   ├── context/
+│   │   └── AuthContext.jsx         # JWT auth state (React Context)
+│   └── lib/
+│       ├── api.js                  # API client (fetch wrapper + auth headers)
+│       └── supabase.js             # Supabase client
+│
+├── backend/                        # FastAPI backend
+│   ├── main.py                     # App entry point, middleware, lifespan
+│   ├── requirements.txt
+│   ├── Procfile                    # Render deployment
+│   │
+│   ├── routes/
+│   │   ├── analyze.py              # POST /api/analyze — main pipeline
+│   │   ├── auth.py                 # POST /api/auth/signup|login, GET /api/auth/me|history
+│   │   ├── feed.py                 # GET /api/feed
+│   │   ├── trending.py             # GET /api/trending
+│   │   ├── stats.py                # GET /api/stats
+│   │   └── dataset.py              # GET /api/dataset
+│   │
+│   ├── lib/
+│   │   ├── auth.py                 # JWT creation, MongoDB client, user helpers
+│   │   ├── ml_model.py             # HuggingFace BERT + ClaimBuster models
+│   │   ├── claim_extractor.py      # Gemini claim extraction
+│   │   ├── evidence_retriever.py   # Tavily + Google Fact Check
+│   │   ├── evidence_reasoner.py    # Gemini evidence reasoning
+│   │   ├── ensemble_verdict_v2.py  # Credibility-weighted ensemble
+│   │   ├── source_credibility.py   # Domain scoring (0–100)
+│   │   ├── heuristics.py           # 60+ manipulation-pattern rules
+│   │   ├── cache.py                # Upstash Redis caching
+│   │   ├── limiter.py              # SlowAPI rate limiting
+│   │   ├── daily_quota.py          # Global daily analyze limit
+│   │   ├── input_handler.py        # URL extraction (Trafilatura)
+│   │   ├── file_parser.py          # PDF / DOCX / TXT parsing
+│   │   ├── feed_manager.py         # Supabase feed queries
+│   │   ├── supabase_client.py      # Supabase client
+│   │   └── explainability_formatter.py
+│   │
+│   ├── jobs/
+│   │   ├── trending_cron.py        # NewsAPI → auto-analyze → Supabase
+│   │   └── keep_alive.py           # Render / Supabase / Redis keep-alive pings
+│   │
+│   ├── migrations/                 # Supabase SQL migrations
+│   ├── eval/                       # Benchmark dataset + results
+│   │   ├── dataset.json
+│   │   ├── results.json
+│   │   └── run_benchmark.py
+│   └── tests/                      # Pytest test suite
+│
+├── .github/workflows/ci.yml        # GitHub Actions CI/CD
+├── docker-compose.yml
+└── Dockerfile
 ```
 
 ---
 
-## 👥 Team
+## 🔄 CI/CD Pipeline
 
-**VeritasAI** was originally built as a hackathon project by **Atharv Sawane** and **Shashank Kalwa**. It is currently solo-maintained and developed by Shashank Kalwa.
+GitHub Actions runs on every push and pull request to `main`:
 
-*VeritasAI — See Through the Noise* 🔍
+- **Backend Lint** — `flake8` on all Python source files
+- **Backend Tests** — `pytest` test suite (ensemble verdict, heuristics, source credibility, rate limiting)
+- **Frontend Lint** — `eslint` on all React/TypeScript source files
+
+---
+
+## 🐳 Run with Docker Compose
+
+```bash
+# 1. Copy and fill in both env files
+cp .env.example .env
+cp backend/.env.example backend/.env
+
+# 2. Build and start
+docker compose up --build -d
+
+# Frontend → http://localhost
+# Backend API → http://localhost:8000
+# Swagger Docs → http://localhost:8000/docs
+
+# Logs
+docker compose logs -f
+
+# Stop
+docker compose down
+```
+
+---
+
+## 🛑 API Quota Exhaustion & Fallbacks
+
+| Service | Fallback Behaviour |
+|---------|-------------------|
+| **HuggingFace** (timeout / 429) | Fast-fail after 3s; ensemble relies on Gemini + Fact Check only |
+| **Tavily** (monthly limit) | Logs warning; weights Google Fact Check or falls back to Insufficient Evidence |
+| **Gemini** (15 RPM / 1,500 RPD) | Request fails gracefully; Redis caching mitigates repeat queries |
+| **Daily Analyze Limit** | Returns `429 Too Many Requests` to protect API budget |
+
+---
+
+## 📝 License
+
+MIT © VeritasAI Team
